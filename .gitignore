@@ -24,3 +24,6 @@ Thumbs.db
 
 # Docker volumes
 mysql_data/
+
+# SSH Keys
+*.pem
