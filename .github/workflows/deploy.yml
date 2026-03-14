@@ -50,45 +50,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Setup SSH key and deploy
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          ssh-keygen -l -f ~/.ssh/ec2_key
-          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo SSH_OK"
 
-      - name: Copy files to EC2
-        run: |
-          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa \
-            docker-compose.prod.yml \
-            .env.production \
-            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/
+          SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
+          TARGET="${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}"
 
-          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa \
-            database/init.sql \
-            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
+          # Copy files
+          scp $SSH_OPTS docker-compose.prod.yml .env.production ${TARGET}:/home/${{ secrets.EC2_USERNAME }}/student-app/
+          scp $SSH_OPTS database/init.sql ${TARGET}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
 
-      - name: Deploy on EC2
-        run: |
-          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'DEPLOY'
-            cd ~/student-app
-
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-
-            if [ -f .env.production ]; then
-              export $(cat .env.production | grep -v '^#' | xargs)
-            fi
-
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml down
-            docker compose -f docker-compose.prod.yml up -d
-
-            echo "Waiting for services to start..."
-            sleep 10
-
-            curl -f http://localhost/api/health || echo "Health check failed - check logs"
-
-            docker image prune -f
-          DEPLOY
+          # Deploy
+          ssh $SSH_OPTS ${TARGET} "cd ~/student-app && \
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} && \
+            export \$(cat .env.production | grep -v '^#' | xargs) && \
+            docker compose -f docker-compose.prod.yml pull && \
+            docker compose -f docker-compose.prod.yml down && \
+            docker compose -f docker-compose.prod.yml up -d && \
+            echo 'Waiting for services...' && sleep 10 && \
+            curl -f http://localhost/api/health || echo 'Health check failed' && \
+            docker image prune -f"
