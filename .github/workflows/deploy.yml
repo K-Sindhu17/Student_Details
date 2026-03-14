@@ -51,26 +51,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          echo "Key file info:"
+          wc -l ~/.ssh/ec2_key
+          head -1 ~/.ssh/ec2_key
+          tail -1 ~/.ssh/ec2_key
 
       - name: Copy files to EC2
         run: |
-          scp -i ~/.ssh/ec2_key \
+          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
             docker-compose.prod.yml \
             .env.production \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/
 
-          scp -i ~/.ssh/ec2_key \
+          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
             database/init.sql \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'DEPLOY'
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'DEPLOY'
             cd ~/student-app
 
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
