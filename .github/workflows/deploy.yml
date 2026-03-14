@@ -55,28 +55,27 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ec2_key
+          echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          echo "Key file info:"
-          wc -l ~/.ssh/ec2_key
-          head -1 ~/.ssh/ec2_key
-          tail -1 ~/.ssh/ec2_key
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/ec2_key
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo SSH_OK" || echo "SSH test failed"
 
       - name: Copy files to EC2
         run: |
-          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
+          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa \
             docker-compose.prod.yml \
             .env.production \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/
 
-          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
+          scp -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa \
             database/init.sql \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'DEPLOY'
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'DEPLOY'
             cd ~/student-app
 
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
