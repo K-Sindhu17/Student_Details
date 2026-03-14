@@ -68,6 +68,14 @@ jobs:
           # Test SSH
           ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "echo SSH_OK"
 
+          # Create .env.production
+          cat > .env.production << 'ENVEOF'
+          DB_ROOT_PASSWORD=rootpassword
+          DB_NAME=student_db
+          DB_USER=student_user
+          DB_PASSWORD=studentpass
+          ENVEOF
+
           # Copy files
           ${SCP_CMD} docker-compose.prod.yml .env.production \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/
