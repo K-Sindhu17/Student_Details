@@ -50,45 +50,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
       - name: Copy files to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.prod.yml,database/init.sql,.env.production"
-          target: "/home/${{ secrets.EC2_USERNAME }}/student-app"
+        run: |
+          scp -i ~/.ssh/ec2_key \
+            docker-compose.prod.yml \
+            .env.production \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/
+
+          scp -i ~/.ssh/ec2_key \
+            database/init.sql \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
 
       - name: Deploy on EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/${{ secrets.EC2_USERNAME }}/student-app
+        run: |
+          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'DEPLOY'
+            cd ~/student-app
 
-            # Export Docker Hub username for compose file
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
 
-            # Load production environment variables
             if [ -f .env.production ]; then
               export $(cat .env.production | grep -v '^#' | xargs)
             fi
 
-            # Pull latest images
             docker compose -f docker-compose.prod.yml pull
-
-            # Stop old containers and start new ones
             docker compose -f docker-compose.prod.yml down
             docker compose -f docker-compose.prod.yml up -d
 
-            # Wait for services to be healthy
             echo "Waiting for services to start..."
             sleep 10
 
-            # Health check
             curl -f http://localhost/api/health || echo "Health check failed - check logs"
 
-            # Clean up old images
             docker image prune -f
+          DEPLOY
