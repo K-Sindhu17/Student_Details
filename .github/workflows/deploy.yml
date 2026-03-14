@@ -50,22 +50,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key and deploy
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 to known hosts
+        run: ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copy files to EC2
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > ~/.ssh/ec2_key
-          chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          scp -o StrictHostKeyChecking=no \
+            docker-compose.prod.yml .env.production \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/
 
-          SSH_OPTS="-i ~/.ssh/ec2_key -o StrictHostKeyChecking=no"
-          TARGET="${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}"
+          scp -o StrictHostKeyChecking=no \
+            database/init.sql \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
 
-          # Copy files
-          scp $SSH_OPTS docker-compose.prod.yml .env.production ${TARGET}:/home/${{ secrets.EC2_USERNAME }}/student-app/
-          scp $SSH_OPTS database/init.sql ${TARGET}:/home/${{ secrets.EC2_USERNAME }}/student-app/database/
-
-          # Deploy
-          ssh $SSH_OPTS ${TARGET} "cd ~/student-app && \
+      - name: Deploy on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "cd ~/student-app && \
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} && \
             export \$(cat .env.production | grep -v '^#' | xargs) && \
             docker compose -f docker-compose.prod.yml pull && \
