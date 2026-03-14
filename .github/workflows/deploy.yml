@@ -50,42 +50,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2
+      - name: Setup SSH and Deploy
         env:
-          EC2_SSH_KEY_B64: ${{ secrets.EC2_SSH_KEY_B64 }}
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USERNAME }}
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          # Setup SSH key from base64
           mkdir -p ~/.ssh
-          printenv EC2_SSH_KEY_B64 | base64 -d > ~/.ssh/ec2_key
+          printenv SSH_KEY > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-
-          # Verify key
-          ssh-keygen -l -f ~/.ssh/ec2_key
           ssh-keyscan -H ${EC2_HOST} >> ~/.ssh/known_hosts 2>/dev/null
 
-          # Start agent and add key
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/ec2_key
-
-          SSH_OPTS="-o StrictHostKeyChecking=no -i ~/.ssh/ec2_key"
+          SSH_CMD="ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key"
+          SCP_CMD="scp -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key"
 
           # Test SSH
-          ssh ${SSH_OPTS} ${EC2_USER}@${EC2_HOST} "echo SSH_OK"
+          ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "echo SSH_OK"
 
           # Copy files
-          scp ${SSH_OPTS} \
-            docker-compose.prod.yml .env.production \
+          ${SCP_CMD} docker-compose.prod.yml .env.production \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/
 
-          scp ${SSH_OPTS} \
-            database/init.sql \
+          ${SCP_CMD} database/init.sql \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/database/
 
           # Deploy
-          ssh ${SSH_OPTS} ${EC2_USER}@${EC2_HOST} "cd ~/student-app && \
+          ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "cd ~/student-app && \
             export DOCKERHUB_USERNAME=${DOCKER_USER} && \
             export \$(cat .env.production | grep -v '^#' | xargs) && \
             docker compose -f docker-compose.prod.yml pull && \
