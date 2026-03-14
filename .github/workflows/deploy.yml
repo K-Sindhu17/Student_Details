@@ -70,20 +70,22 @@ jobs:
           eval $(ssh-agent -s)
           ssh-add ~/.ssh/ec2_key
 
+          SSH_OPTS="-o StrictHostKeyChecking=no -i ~/.ssh/ec2_key"
+
           # Test SSH
-          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "echo SSH_OK"
+          ssh ${SSH_OPTS} ${EC2_USER}@${EC2_HOST} "echo SSH_OK"
 
           # Copy files
-          scp -o StrictHostKeyChecking=no \
+          scp ${SSH_OPTS} \
             docker-compose.prod.yml .env.production \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/
 
-          scp -o StrictHostKeyChecking=no \
+          scp ${SSH_OPTS} \
             database/init.sql \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/database/
 
           # Deploy
-          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "cd ~/student-app && \
+          ssh ${SSH_OPTS} ${EC2_USER}@${EC2_HOST} "cd ~/student-app && \
             export DOCKERHUB_USERNAME=${DOCKER_USER} && \
             export \$(cat .env.production | grep -v '^#' | xargs) && \
             docker compose -f docker-compose.prod.yml pull && \
