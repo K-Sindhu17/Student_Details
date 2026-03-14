@@ -58,9 +58,10 @@ jobs:
           echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/ec2_key
-          ssh -o StrictHostKeyChecking=no -o BatchMode=yes ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo SSH_OK" || echo "SSH test failed"
+          echo "Key fingerprint:"
+          ssh-keygen -l -f ~/.ssh/ec2_key || echo "INVALID KEY"
+          echo "Expected: SHA256:TNDtO0gZrVEEajn537/pW9QeB8F/6R+tbpixKh50dMY"
+          ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo SSH_OK" 2>&1 || true
 
       - name: Copy files to EC2
         run: |
