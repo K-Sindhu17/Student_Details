@@ -77,8 +77,13 @@ jobs:
           ENVEOF
 
           # Copy files
-          ${SCP_CMD} docker-compose.prod.yml .env.production \
+          ${SCP_CMD} docker-compose.prod.yml .env.production init-letsencrypt.sh \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/
+
+          ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "mkdir -p ~/student-app/frontend ~/student-app/database"
+
+          ${SCP_CMD} frontend/nginx.conf frontend/nginx-init.conf \
+            ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/frontend/
 
           ${SCP_CMD} database/init.sql \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/database/
