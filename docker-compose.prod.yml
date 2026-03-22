@@ -75,7 +75,6 @@ services:
       - certbot_certs:/etc/letsencrypt
     networks:
       - student_network
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   mysql_data:

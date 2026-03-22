@@ -41,7 +41,10 @@ echo "OK — nginx is responding (HTTP $HTTP_CODE)"
 
 # Step 3: Request SSL certificate
 echo "[3/4] Requesting SSL certificate from Let's Encrypt..."
-docker compose -f "$COMPOSE_FILE" run --rm certbot \
+docker run --rm \
+    -v student-app_certbot_webroot:/var/www/certbot \
+    -v student-app_certbot_certs:/etc/letsencrypt \
+    certbot/certbot \
     certonly --webroot \
     --webroot-path=/var/www/certbot \
     -d "$DOMAIN" \
@@ -63,4 +66,7 @@ echo "========================================="
 echo ""
 echo "  https://$DOMAIN"
 echo "  https://www.$DOMAIN"
+echo ""
+echo "To auto-renew certificates, add this cron job:"
+echo '  0 3 * * * cd ~/student-app && docker run --rm -v student-app_certbot_certs:/etc/letsencrypt -v student-app_certbot_webroot:/var/www/certbot certbot/certbot renew --quiet && docker restart student_frontend'
 echo ""
