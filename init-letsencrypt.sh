@@ -8,6 +8,17 @@ DOMAIN="sindhu-kodaboina.com"
 EMAIL="sindhukodaboina2002@gmail.com"
 COMPOSE_FILE="docker-compose.prod.yml"
 
+# Load environment variables
+if [ -f .env.production ]; then
+    export $(cat .env.production | grep -v '^#' | xargs)
+fi
+
+# Get DOCKERHUB_USERNAME if not set
+if [ -z "$DOCKERHUB_USERNAME" ]; then
+    read -p "Enter your Docker Hub username: " DOCKERHUB_USERNAME
+    export DOCKERHUB_USERNAME
+fi
+
 echo ""
 echo "========================================="
 echo "  SSL Certificate Setup for $DOMAIN"
