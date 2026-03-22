@@ -88,7 +88,7 @@ jobs:
           ${SCP_CMD} database/init.sql \
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/database/
 
-          # Deploy
+          # Deploy (including portfolio container)
           ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "cd ~/student-app && \
             export DOCKERHUB_USERNAME=${DOCKER_USER} && \
             export \$(cat .env.production | grep -v '^#' | xargs) && \

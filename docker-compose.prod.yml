@@ -67,6 +67,13 @@ services:
     networks:
       - student_network
 
+  portfolio:
+    image: ${DOCKERHUB_USERNAME}/portfolio:latest
+    container_name: portfolio
+    restart: unless-stopped
+    networks:
+      - student_network
+
   certbot:
     image: certbot/certbot
     container_name: student_certbot

@@ -49,6 +49,7 @@ docker run --rm \
     --webroot-path=/var/www/certbot \
     -d "$DOMAIN" \
     -d "www.$DOMAIN" \
+    -d "portfolio.$DOMAIN" \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
