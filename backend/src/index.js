@@ -1,20 +1,27 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const { testConnection } = require('./config/db');
+const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/students');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/students', studentRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api', studentRoutes);
 
 const startServer = async () => {
   let retries = 10;

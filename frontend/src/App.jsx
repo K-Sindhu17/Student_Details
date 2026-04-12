@@ -1,167 +1,136 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from './components/Header'
-import StudentTable from './components/StudentTable'
-import Pagination from './components/Pagination'
+import HomePage from './components/HomePage'
+import LoginForm from './components/LoginForm'
+import RegisterForm from './components/RegisterForm'
+import ClassPage from './components/ClassPage'
+import StudentForm from './components/StudentForm'
+import StudentView from './components/StudentView'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 function App() {
-  const [students, setStudents] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(0)
-  const [totalStudents, setTotalStudents] = useState(0)
-  const [selectedOption, setSelectedOption] = useState(null)
-  const [showData, setShowData] = useState(false)
-  const [fetchTime, setFetchTime] = useState(null)
-  const limit = 500
+  const [page, setPage] = useState('home')
+  const [user, setUser] = useState(null)
+  const [selectedClass, setSelectedClass] = useState(null)
+  const [editingStudent, setEditingStudent] = useState(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
-  const fetchStudents = async (page) => {
-    setLoading(true)
-    setError(null)
-    const startTime = performance.now()
+  useEffect(() => {
+    checkAuth()
+  }, [])
 
+  const checkAuth = async () => {
     try {
-      const response = await fetch(`${API_URL}/students?page=${page}&limit=${limit}`)
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch students')
+      const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
+      const data = await res.json()
+      if (data.teacher) {
+        setUser(data.teacher)
       }
-
-      const data = await response.json()
-      const endTime = performance.now()
-      const timeTaken = ((endTime - startTime) / 1000).toFixed(3)
-
-      setStudents(data.students)
-      setTotalPages(data.totalPages)
-      setTotalStudents(data.total)
-      setFetchTime(timeTaken)
     } catch (err) {
-      setError(err.message)
-      setFetchTime(null)
+      // Not logged in
     } finally {
-      setLoading(false)
+      setCheckingAuth(false)
     }
   }
 
-  const handleSubmit = () => {
-    if (selectedOption === 'yes') {
-      setShowData(true)
-      fetchStudents(1)
-    } else if (selectedOption === 'no') {
-      setShowData(false)
-      setStudents([])
-      setTotalStudents(0)
-      setTotalPages(0)
-      setFetchTime(null)
+  const handleLogin = (teacher) => {
+    setUser(teacher)
+    setSelectedClass(teacher.class)
+    setPage('class')
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+    } catch (err) {
+      // Ignore
+    }
+    setUser(null)
+    setPage('home')
+  }
+
+  const navigate = (pageName) => {
+    setPage(pageName)
+    if (pageName === 'home') {
+      setSelectedClass(null)
+      setEditingStudent(null)
+    }
+    if (pageName !== 'enter') {
+      setEditingStudent(null)
     }
   }
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page)
-    fetchStudents(page)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  const handleSelectClass = (cls) => {
+    setSelectedClass(cls)
+    setPage('class')
   }
 
-  const handleReset = () => {
-    setSelectedOption(null)
-    setShowData(false)
-    setStudents([])
-    setTotalStudents(0)
-    setTotalPages(0)
-    setCurrentPage(1)
-    setFetchTime(null)
+  const handleEditStudent = (student) => {
+    setEditingStudent(student)
+    setPage('enter')
+  }
+
+  const handleStudentSaved = () => {
+    setEditingStudent(null)
+    setPage('view')
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="app">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="app">
-      <Header totalStudents={totalStudents} />
+      <Header user={user} onLogout={handleLogout} onNavigate={navigate} />
 
       <main className="main-content">
-        {!showData && (
-          <div className="question-card">
-            <h2>Do you want to see all the student details?</h2>
-
-            <div className="radio-group">
-              <label className={`radio-option ${selectedOption === 'yes' ? 'selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="viewChoice"
-                  value="yes"
-                  checked={selectedOption === 'yes'}
-                  onChange={(e) => setSelectedOption(e.target.value)}
-                />
-                <span className="radio-checkmark"></span>
-                Yes, show all student details
-              </label>
-
-              <label className={`radio-option ${selectedOption === 'no' ? 'selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="viewChoice"
-                  value="no"
-                  checked={selectedOption === 'no'}
-                  onChange={(e) => setSelectedOption(e.target.value)}
-                />
-                <span className="radio-checkmark"></span>
-                No, I don't want to see
-              </label>
-            </div>
-
-            <button
-              className="submit-btn"
-              onClick={handleSubmit}
-              disabled={selectedOption === null}
-            >
-              Submit
-            </button>
-
-            {selectedOption === 'no' && (
-              <p className="info-text">You selected No. Click Submit to confirm.</p>
-            )}
-          </div>
+        {page === 'home' && (
+          <HomePage onSelectClass={handleSelectClass} />
         )}
 
-        {error && (
-          <div className="error-message">
-            Error: {error}
-            <button onClick={() => fetchStudents(currentPage)}>Retry</button>
-          </div>
+        {page === 'login' && (
+          <LoginForm onLogin={handleLogin} onNavigate={navigate} />
         )}
 
-        {showData && loading && (
-          <div className="loading">
-            <div className="loading-spinner"></div>
-            <p>Loading students...</p>
-          </div>
+        {page === 'register' && (
+          <RegisterForm onLogin={handleLogin} onNavigate={navigate} />
         )}
 
-        {showData && !loading && students.length > 0 && (
-          <>
-            <div className="data-header">
-              <div className="page-info">
-                Showing {students.length} students (Page {currentPage} of {totalPages})
-              </div>
-              <button className="reset-btn" onClick={handleReset}>
-                Go Back
-              </button>
-            </div>
+        {page === 'class' && selectedClass && (
+          <ClassPage
+            selectedClass={selectedClass}
+            user={user}
+            onNavigate={navigate}
+          />
+        )}
 
-            {fetchTime && (
-              <div className="fetch-time">
-                Data fetched in <strong>{fetchTime} seconds</strong>
-              </div>
-            )}
+        {page === 'enter' && selectedClass && user && (
+          <StudentForm
+            selectedClass={selectedClass}
+            user={user}
+            editingStudent={editingStudent}
+            onNavigate={navigate}
+            onSave={handleStudentSaved}
+          />
+        )}
 
-            <StudentTable students={students} currentPage={currentPage} limit={limit} />
-
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </>
+        {page === 'view' && selectedClass && (
+          <StudentView
+            selectedClass={selectedClass}
+            user={user}
+            onNavigate={navigate}
+            onEditStudent={handleEditStudent}
+          />
         )}
       </main>
     </div>
