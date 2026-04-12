@@ -1,4 +1,4 @@
-function Header({ user, onLogout, onNavigate }) {
+function Header({ user, onLogout, onNavigate, theme, onToggleTheme }) {
   return (
     <header className="header">
       <div className="header-left">
@@ -7,6 +7,9 @@ function Header({ user, onLogout, onNavigate }) {
         </h1>
       </div>
       <div className="header-right">
+        <button className="theme-toggle" onClick={onToggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
         {user ? (
           <div className="user-info">
             <span className="user-name">{user.name}</span>

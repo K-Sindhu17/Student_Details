@@ -15,6 +15,14 @@ function App() {
   const [selectedClass, setSelectedClass] = useState(null)
   const [editingStudent, setEditingStudent] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
+
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light')
 
   useEffect(() => {
     checkAuth()
@@ -91,7 +99,7 @@ function App() {
 
   return (
     <div className="app">
-      <Header user={user} onLogout={handleLogout} onNavigate={navigate} />
+      <Header user={user} onLogout={handleLogout} onNavigate={navigate} theme={theme} onToggleTheme={toggleTheme} />
 
       <main className="main-content">
         {page === 'home' && (
