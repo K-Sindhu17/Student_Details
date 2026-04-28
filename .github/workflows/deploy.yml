@@ -92,12 +92,20 @@ jobs:
           ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "set -e; cd ~/student-app && \
             export DOCKERHUB_USERNAME=${DOCKER_USER} && \
             export \$(cat .env.production | grep -v '^#' | xargs) && \
-            echo '--- disk before cleanup ---' && df -h / && \
-            docker image prune -af && \
+            echo '--- disk before ---' && df -h / && \
+            echo '--- top space users ---' && (sudo du -shx /var/lib/docker /var/log /var/cache /home 2>/dev/null | sort -h || true) && \
+            echo '--- stopping containers to free image refs ---' && (docker compose -f docker-compose.prod.yml down --remove-orphans || true) && \
+            echo '--- pruning docker (preserves named volumes) ---' && \
+            docker system prune -af && \
             docker builder prune -af && \
+            echo '--- truncating container logs ---' && (sudo truncate -s 0 /var/lib/docker/containers/*/*-json.log 2>/dev/null || true) && \
+            echo '--- vacuuming journal ---' && (sudo journalctl --vacuum-size=50M 2>/dev/null || true) && \
+            echo '--- apt clean ---' && (sudo apt-get clean 2>/dev/null || true) && \
+            echo '--- /tmp cleanup ---' && (sudo find /tmp -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf {} + 2>/dev/null || true) && \
             echo '--- disk after cleanup ---' && df -h / && \
-            docker compose -f docker-compose.prod.yml pull && \
-            docker compose -f docker-compose.prod.yml up -d --force-recreate && \
-            echo 'Waiting for services...' && sleep 10 && \
+            echo '--- pulling new images ---' && docker compose -f docker-compose.prod.yml pull && \
+            docker compose -f docker-compose.prod.yml up -d && \
+            echo 'Waiting for services...' && sleep 12 && \
             docker compose -f docker-compose.prod.yml ps && \
+            echo '--- disk final ---' && df -h / && \
             (curl -fsS http://localhost/api/health || echo 'Health check failed')"
