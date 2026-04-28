@@ -1,148 +1,64 @@
-import { useState, useEffect } from 'react'
-import Header from './components/Header'
-import HomePage from './components/HomePage'
-import LoginForm from './components/LoginForm'
-import RegisterForm from './components/RegisterForm'
-import ClassPage from './components/ClassPage'
-import StudentForm from './components/StudentForm'
-import StudentView from './components/StudentView'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './AuthContext.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import Layout from './components/Layout.jsx'
+import Login from './pages/Login.jsx'
+import ChangePassword from './pages/ChangePassword.jsx'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+import AdminDashboard from './pages/admin/AdminDashboard.jsx'
+import AdminStudents from './pages/admin/AdminStudents.jsx'
+import AdminTeachers from './pages/admin/AdminTeachers.jsx'
+import AdminClasses from './pages/admin/AdminClasses.jsx'
 
-function App() {
-  const [page, setPage] = useState('home')
-  const [user, setUser] = useState(null)
-  const [selectedClass, setSelectedClass] = useState(null)
-  const [editingStudent, setEditingStudent] = useState(null)
-  const [checkingAuth, setCheckingAuth] = useState(true)
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
+import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
+import TeacherAttendance from './pages/teacher/TeacherAttendance.jsx'
+import TeacherAssignments from './pages/teacher/TeacherAssignments.jsx'
+import TeacherMarks from './pages/teacher/TeacherMarks.jsx'
 
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
+import StudentDashboard from './pages/student/StudentDashboard.jsx'
+import StudentAttendance from './pages/student/StudentAttendance.jsx'
+import StudentAssignments from './pages/student/StudentAssignments.jsx'
+import StudentMarks from './pages/student/StudentMarks.jsx'
 
-  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light')
+function Home() {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="loading">Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  if (user.must_change_password) return <Navigate to="/change-password" replace />
+  return <Navigate to={`/${user.role}`} replace />
+}
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
-      const data = await res.json()
-      if (data.teacher) {
-        setUser(data.teacher)
-      }
-    } catch (err) {
-      // Not logged in
-    } finally {
-      setCheckingAuth(false)
-    }
-  }
-
-  const handleLogin = (teacher) => {
-    setUser(teacher)
-    setSelectedClass(teacher.class)
-    setPage('class')
-  }
-
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      })
-    } catch (err) {
-      // Ignore
-    }
-    setUser(null)
-    setPage('home')
-  }
-
-  const navigate = (pageName) => {
-    setPage(pageName)
-    if (pageName === 'home') {
-      setSelectedClass(null)
-      setEditingStudent(null)
-    }
-    if (pageName !== 'enter') {
-      setEditingStudent(null)
-    }
-  }
-
-  const handleSelectClass = (cls) => {
-    setSelectedClass(cls)
-    setPage('class')
-  }
-
-  const handleEditStudent = (student) => {
-    setEditingStudent(student)
-    setPage('enter')
-  }
-
-  const handleStudentSaved = () => {
-    setEditingStudent(null)
-    setPage('view')
-  }
-
-  if (checkingAuth) {
-    return (
-      <div className="app">
-        <div className="loading">
-          <div className="loading-spinner"></div>
-        </div>
-      </div>
-    )
-  }
-
+function withLayout(role, Component) {
   return (
-    <div className="app">
-      <Header user={user} onLogout={handleLogout} onNavigate={navigate} theme={theme} onToggleTheme={toggleTheme} />
-
-      <main className="main-content">
-        {page === 'home' && (
-          <HomePage onSelectClass={handleSelectClass} />
-        )}
-
-        {page === 'login' && (
-          <LoginForm onLogin={handleLogin} onNavigate={navigate} />
-        )}
-
-        {page === 'register' && (
-          <RegisterForm onLogin={handleLogin} onNavigate={navigate} />
-        )}
-
-        {page === 'class' && selectedClass && (
-          <ClassPage
-            selectedClass={selectedClass}
-            user={user}
-            onNavigate={navigate}
-          />
-        )}
-
-        {page === 'enter' && selectedClass && user && (
-          <StudentForm
-            selectedClass={selectedClass}
-            user={user}
-            editingStudent={editingStudent}
-            onNavigate={navigate}
-            onSave={handleStudentSaved}
-          />
-        )}
-
-        {page === 'view' && selectedClass && (
-          <StudentView
-            selectedClass={selectedClass}
-            user={user}
-            onNavigate={navigate}
-            onEditStudent={handleEditStudent}
-          />
-        )}
-      </main>
-    </div>
+    <ProtectedRoute role={role}>
+      <Layout><Component /></Layout>
+    </ProtectedRoute>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/change-password" element={<ChangePassword />} />
+
+      <Route path="/admin"          element={withLayout('admin', AdminDashboard)} />
+      <Route path="/admin/students" element={withLayout('admin', AdminStudents)} />
+      <Route path="/admin/teachers" element={withLayout('admin', AdminTeachers)} />
+      <Route path="/admin/classes"  element={withLayout('admin', AdminClasses)} />
+
+      <Route path="/teacher"             element={withLayout('teacher', TeacherDashboard)} />
+      <Route path="/teacher/attendance"  element={withLayout('teacher', TeacherAttendance)} />
+      <Route path="/teacher/assignments" element={withLayout('teacher', TeacherAssignments)} />
+      <Route path="/teacher/marks"       element={withLayout('teacher', TeacherMarks)} />
+
+      <Route path="/student"             element={withLayout('student', StudentDashboard)} />
+      <Route path="/student/attendance"  element={withLayout('student', StudentAttendance)} />
+      <Route path="/student/assignments" element={withLayout('student', StudentAssignments)} />
+      <Route path="/student/marks"       element={withLayout('student', StudentMarks)} />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}

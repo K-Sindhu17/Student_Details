@@ -1,24 +1,23 @@
 services:
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:16-alpine
     container_name: student_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-student_db}
-      MYSQL_USER: ${DB_USER:-student_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-studentpass}
+      POSTGRES_DB: ${DB_NAME:-student_db}
+      POSTGRES_USER: ${DB_USER:-student_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-studentpass}
     ports:
-      - "3308:3306"
+      - "5433:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-student_user} -d ${DB_NAME:-student_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - student_network
 
@@ -30,15 +29,38 @@ services:
     restart: unless-stopped
     environment:
       PORT: 5000
-      DB_HOST: mysql
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_USER: ${DB_USER:-student_user}
       DB_PASSWORD: ${DB_PASSWORD:-studentpass}
       DB_NAME: ${DB_NAME:-student_db}
-      JWT_SECRET: ${JWT_SECRET:-student_mgmt_secret_key_2024}
+      JWT_SECRET: ${JWT_SECRET:-zphsparmalla_dev_secret}
+      SCHOOL_DOMAIN: ${SCHOOL_DOMAIN:-zphsparmalla.in}
+      SCHOOL_NAME: ${SCHOOL_NAME:-ZPHS Parmalla}
     ports:
       - "5002:5000"
     depends_on:
-      mysql:
+      postgres:
+        condition: service_healthy
+    networks:
+      - student_network
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: student_seed
+    restart: "no"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-student_user}
+      DB_PASSWORD: ${DB_PASSWORD:-studentpass}
+      DB_NAME: ${DB_NAME:-student_db}
+      SCHOOL_DOMAIN: ${SCHOOL_DOMAIN:-zphsparmalla.in}
+    command: npm run seed
+    depends_on:
+      postgres:
         condition: service_healthy
     networks:
       - student_network
@@ -57,7 +79,7 @@ services:
       - student_network
 
 volumes:
-  mysql_data:
+  pg_data:
 
 networks:
   student_network:
