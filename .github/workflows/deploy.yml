@@ -89,12 +89,15 @@ jobs:
             ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/student-app/database/
 
           # Deploy (including portfolio container)
-          ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "cd ~/student-app && \
+          ${SSH_CMD} ${EC2_USER}@${EC2_HOST} "set -e; cd ~/student-app && \
             export DOCKERHUB_USERNAME=${DOCKER_USER} && \
             export \$(cat .env.production | grep -v '^#' | xargs) && \
+            echo '--- disk before cleanup ---' && df -h / && \
+            docker image prune -af && \
+            docker builder prune -af && \
+            echo '--- disk after cleanup ---' && df -h / && \
             docker compose -f docker-compose.prod.yml pull && \
-            docker compose -f docker-compose.prod.yml down && \
-            docker compose -f docker-compose.prod.yml up -d && \
+            docker compose -f docker-compose.prod.yml up -d --force-recreate && \
             echo 'Waiting for services...' && sleep 10 && \
-            curl -f http://localhost/api/health || echo 'Health check failed' && \
-            docker image prune -f"
+            docker compose -f docker-compose.prod.yml ps && \
+            (curl -fsS http://localhost/api/health || echo 'Health check failed')"
