@@ -57,16 +57,16 @@ async function resolveOrCreateClass(raw) {
   return ins[0].id;
 }
 
-// Student email: {year}{schoolcode}st{roll3}@domain  e.g. 2026A61st001@zphsparmalla.in
+// Emails are always stored lowercase. The login route lowercases the typed
+// identifier before lookup, and Postgres equality is case-sensitive.
 function studentEmail(rollRaw, joinYear) {
   const roll3 = normalizeNumericId(rollRaw);
-  return `${joinYear}${SCHOOL_CODE}st${roll3}@${SCHOOL_DOMAIN}`;
+  return `${joinYear}${SCHOOL_CODE}st${roll3}@${SCHOOL_DOMAIN}`.toLowerCase();
 }
 
-// Teacher email: {year}{schoolcode}tech{empId3}@domain  e.g. 2026A61tech001@zphsparmalla.in
 function teacherEmail(teacherIdRaw, joinYear) {
   const id3 = normalizeNumericId(teacherIdRaw);
-  return `${joinYear}${SCHOOL_CODE}tech${id3}@${SCHOOL_DOMAIN}`;
+  return `${joinYear}${SCHOOL_CODE}tech${id3}@${SCHOOL_DOMAIN}`.toLowerCase();
 }
 
 // ---- Classes ----

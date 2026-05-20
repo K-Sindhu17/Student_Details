@@ -18,9 +18,10 @@ const SCHOOL_DOMAIN = process.env.SCHOOL_DOMAIN || 'zphsparmalla.in';
 const SCHOOL_CODE   = process.env.SCHOOL_CODE   || 'A61';
 const JOIN_YEAR     = new Date().getFullYear();
 
-// Same email pattern the admin routes use.
-const studentEmail = (roll3) => `${JOIN_YEAR}${SCHOOL_CODE}st${roll3}@${SCHOOL_DOMAIN}`;
-const teacherEmail = (id3)   => `${JOIN_YEAR}${SCHOOL_CODE}tech${id3}@${SCHOOL_DOMAIN}`;
+// Same email pattern the admin routes use. Always lowercase — the login
+// route lowercases the typed identifier and Postgres equality is case-sensitive.
+const studentEmail = (roll3) => `${JOIN_YEAR}${SCHOOL_CODE}st${roll3}@${SCHOOL_DOMAIN}`.toLowerCase();
+const teacherEmail = (id3)   => `${JOIN_YEAR}${SCHOOL_CODE}tech${id3}@${SCHOOL_DOMAIN}`.toLowerCase();
 
 const TEACHERS = [
   { teacher_id: 't001', name: 'Asha Reddy', subject: 'Math',    grade: 3, phone: '+91 9000000001' },
