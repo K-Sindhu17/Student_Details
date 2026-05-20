@@ -1,22 +1,23 @@
 services:
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:16-alpine
     container_name: student_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-student_db}
-      MYSQL_USER: ${DB_USER:-student_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-studentpass}
+      POSTGRES_DB:       ${DB_NAME:-student_db}
+      POSTGRES_USER:     ${DB_USER:-student_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-studentpass}
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pg_data:/var/lib/postgresql/data
+      # init.sql runs only on first start (when the data dir is empty).
+      # Subsequent starts read existing data and skip this.
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-student_user} -d ${DB_NAME:-student_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - student_network
 
@@ -26,12 +27,18 @@ services:
     restart: unless-stopped
     environment:
       PORT: 5000
-      DB_HOST: mysql
-      DB_USER: ${DB_USER:-student_user}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER:     ${DB_USER:-student_user}
       DB_PASSWORD: ${DB_PASSWORD:-studentpass}
-      DB_NAME: ${DB_NAME:-student_db}
+      DB_NAME:     ${DB_NAME:-student_db}
+      JWT_SECRET:     ${JWT_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SCHOOL_DOMAIN:  ${SCHOOL_DOMAIN:-zphsparmalla.in}
+      SCHOOL_CODE:    ${SCHOOL_CODE:-A61}
+      NODE_ENV: production
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks:
       - student_network
@@ -41,13 +48,17 @@ services:
     container_name: student_seed
     restart: "no"
     environment:
-      DB_HOST: mysql
-      DB_USER: ${DB_USER:-student_user}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER:     ${DB_USER:-student_user}
       DB_PASSWORD: ${DB_PASSWORD:-studentpass}
-      DB_NAME: ${DB_NAME:-student_db}
+      DB_NAME:     ${DB_NAME:-student_db}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SCHOOL_DOMAIN:  ${SCHOOL_DOMAIN:-zphsparmalla.in}
+      NODE_ENV: production
     command: npm run seed
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks:
       - student_network
@@ -84,7 +95,7 @@ services:
       - student_network
 
 volumes:
-  mysql_data:
+  pg_data:
   certbot_webroot:
   certbot_certs:
 
