@@ -47,6 +47,30 @@ app.use((err, req, res, next) => {
       } catch (e) {
         console.error('must_change_password migration failed:', e.message);
       }
+      // TIMESTAMP WITHOUT TIME ZONE drops the offset on write and re-applies the
+      // server's offset on read, producing a wall-clock shift (5h30m in IST).
+      // TIMESTAMPTZ keeps everything in UTC end-to-end. The existing rows were
+      // written as UTC (the Z-suffixed ISO from the frontend), so AT TIME ZONE
+      // 'UTC' just declares that fact — no data is shifted.
+      try {
+        await pool.query(`
+          ALTER TABLE assignments   ALTER COLUMN due_at       TYPE TIMESTAMPTZ USING due_at       AT TIME ZONE 'UTC';
+          ALTER TABLE assignments   ALTER COLUMN created_at   TYPE TIMESTAMPTZ USING created_at   AT TIME ZONE 'UTC';
+          ALTER TABLE submissions   ALTER COLUMN started_at   TYPE TIMESTAMPTZ USING started_at   AT TIME ZONE 'UTC';
+          ALTER TABLE submissions   ALTER COLUMN submitted_at TYPE TIMESTAMPTZ USING submitted_at AT TIME ZONE 'UTC';
+          ALTER TABLE marks         ALTER COLUMN recorded_at  TYPE TIMESTAMPTZ USING recorded_at  AT TIME ZONE 'UTC';
+          ALTER TABLE notifications ALTER COLUMN created_at   TYPE TIMESTAMPTZ USING created_at   AT TIME ZONE 'UTC';
+          ALTER TABLE attendance    ALTER COLUMN created_at   TYPE TIMESTAMPTZ USING created_at   AT TIME ZONE 'UTC';
+          ALTER TABLE students      ALTER COLUMN created_at   TYPE TIMESTAMPTZ USING created_at   AT TIME ZONE 'UTC';
+          ALTER TABLE teachers      ALTER COLUMN created_at   TYPE TIMESTAMPTZ USING created_at   AT TIME ZONE 'UTC';
+          ALTER TABLE admins        ALTER COLUMN created_at   TYPE TIMESTAMPTZ USING created_at   AT TIME ZONE 'UTC';
+        `);
+      } catch (e) {
+        // Only the first run actually converts; subsequent runs no-op (already TIMESTAMPTZ).
+        if (!String(e.message).includes('already')) {
+          console.error('timestamptz migration warn:', e.message);
+        }
+      }
       // Backfill: create teacher notifications for any submitted quiz that doesn't already have one.
       try {
         const r = await pool.query(`

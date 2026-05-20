@@ -631,17 +631,19 @@ tbody tr:hover { background: var(--primary-soft); }
 }
 .bell-badge {
   position: absolute;
-  top: -7px; right: -7px;
-  background: var(--accent);
-  color: #4A2E00;
+  top: -8px; right: -8px;
+  background: linear-gradient(135deg, #FB7185, #F43F5E);
+  color: white;
   font-family: var(--font-display);
-  font-size: .7rem;
+  font-size: .78rem;
   font-weight: 700;
+  line-height: 1;
+  border: 2px solid white;
   border-radius: var(--pill);
-  padding: 2px 7px;
-  min-width: 20px;
+  padding: 3px 7px;
+  min-width: 22px;
   text-align: center;
-  box-shadow: var(--shadow-yellow);
+  box-shadow: 0 4px 10px rgba(244, 63, 94, 0.55);
   animation: pulse-glow 2.4s ease-in-out infinite;
 }
 .bell-panel {
@@ -683,11 +685,26 @@ tbody tr:hover { background: var(--primary-soft); }
 .bell-item:hover { background: var(--surface-hover); }
 .bell-item.clickable:hover { background: var(--primary-soft); }
 .bell-item.clickable .bell-item-title::after { content: ' ›'; color: var(--primary); font-weight: 700; }
-.bell-item.unread { background: linear-gradient(90deg, var(--accent-soft), transparent); }
-.bell-item.unread .bell-item-title::before { content: '●'; color: var(--accent-hover); margin-right: .35rem; }
-.bell-item-title { font-size: .92rem; font-weight: 700; font-family: var(--font-display); }
-.bell-item-body  { font-size: .85rem; color: var(--muted); margin-top: .25rem; line-height: 1.45; }
-.bell-item-time  { font-size: .72rem; color: var(--muted); margin-top: .35rem; }
+.bell-item.unread {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.35), rgba(251, 191, 36, 0.08));
+}
+.bell-item.unread .bell-item-title::before {
+  content: '●';
+  color: var(--accent-hover);
+  margin-right: .35rem;
+}
+.bell-item-title {
+  font-size: .95rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text);
+  line-height: 1.3;
+}
+.bell-item.unread .bell-item-title {
+  color: var(--primary-hover);
+}
+.bell-item-body  { font-size: .85rem; color: var(--text-soft); margin-top: .3rem; line-height: 1.45; }
+.bell-item-time  { font-size: .72rem; color: var(--muted); margin-top: .4rem; font-weight: 600; }
 
 /* ═════════ Confetti canvas ═════════ */
 .confetti-canvas {

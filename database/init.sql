@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS admins (
     email                 VARCHAR(150) UNIQUE NOT NULL,
     password              VARCHAR(255) NOT NULL,
     must_change_password  BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS teachers (
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     phone                 VARCHAR(20),
     class_id              INT REFERENCES classes(id) ON DELETE SET NULL,
     subject               VARCHAR(100),
-    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS students (
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS students (
     mother_name           VARCHAR(100),
     mother_phone          VARCHAR(20),
     mother_email          VARCHAR(150),
-    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (roll_number, class_id)
 );
 
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS attendance (
     date        DATE NOT NULL,
     status      VARCHAR(10) NOT NULL DEFAULT 'present' CHECK (status IN ('present','absent','late')),
     marked_by   INT REFERENCES teachers(id) ON DELETE SET NULL,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (student_id, date)
 );
 
@@ -66,9 +66,9 @@ CREATE TABLE IF NOT EXISTS assignments (
     teacher_id        INT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
     title             VARCHAR(200) NOT NULL,
     description       TEXT,
-    due_at            TIMESTAMP,        -- deadline: students must submit before this; NULL = no deadline
+    due_at            TIMESTAMPTZ,      -- deadline: students must submit before this; NULL = no deadline
     duration_minutes  INT,              -- time limit once student starts; NULL = no limit
-    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS questions (
@@ -87,8 +87,8 @@ CREATE TABLE IF NOT EXISTS submissions (
     id            SERIAL PRIMARY KEY,
     assignment_id INT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
     student_id    INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    started_at    TIMESTAMP,           -- when student clicked "Start"
-    submitted_at  TIMESTAMP,
+    started_at    TIMESTAMPTZ,         -- when student clicked "Start"
+    submitted_at  TIMESTAMPTZ,
     auto_score    NUMERIC(6,2),        -- sum of MCQ points earned
     manual_score  NUMERIC(6,2),        -- sum of text-question points the teacher gave
     feedback      TEXT,
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS marks (
     exam_type    VARCHAR(50) NOT NULL DEFAULT 'term',
     marks        NUMERIC(5,2) NOT NULL,
     max_marks    NUMERIC(5,2) NOT NULL DEFAULT 100,
-    recorded_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    recorded_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (student_id, subject, exam_type)
 );
 
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     body            TEXT,
     link            VARCHAR(255),
     is_read         BOOLEAN DEFAULT FALSE,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link VARCHAR(255);
