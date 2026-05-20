@@ -4,7 +4,6 @@ const { query } = require('../config/db');
 const { signToken, setAuthCookie, clearAuthCookie, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
-const SCHOOL_DOMAIN = process.env.SCHOOL_DOMAIN || 'zphsparmalla.in';
 
 const TABLES = {
   admin: 'admins',
@@ -12,11 +11,10 @@ const TABLES = {
   student: 'students',
 };
 
-// Build the email from a role-specific identifier
-function emailFor(role, identifier) {
-  const id = String(identifier).trim().toLowerCase();
-  if (role === 'student' || role === 'teacher') return `${id}@${SCHOOL_DOMAIN}`;
-  return id; // admin uses real email
+// All roles look up by email.
+function lookupFor(role, identifier) {
+  const v = String(identifier).trim().toLowerCase();
+  return { column: 'email', value: v };
 }
 
 router.post('/login', async (req, res) => {
@@ -27,19 +25,19 @@ router.post('/login', async (req, res) => {
   const table = TABLES[role];
   if (!table) return res.status(400).json({ error: 'Invalid role' });
 
-  const email = emailFor(role, identifier);
+  const { column, value } = lookupFor(role, identifier);
 
   try {
     const [rows] = await query(
       `SELECT id, name, email, password, must_change_password
-       FROM ${table} WHERE email = ? LIMIT 1`,
-      [email]
+       FROM ${table} WHERE ${column} = ? LIMIT 1`,
+      [value]
     );
-    if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    if (rows.length === 0) return res.status(401).json({ error: 'Email or password is incorrect' });
 
     const user = rows[0];
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!ok) return res.status(401).json({ error: 'Email or password is incorrect' });
 
     const token = signToken({ id: user.id, role, email: user.email, name: user.name });
     setAuthCookie(res, token);
@@ -57,6 +55,60 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', (req, res) => {
   clearAuthCookie(res);
+  res.json({ ok: true });
+});
+
+// Self-service forgot-password: user enters their roll/teacher_id; if it exists,
+// every admin gets a notification to reset their password from the admin pages.
+// Always returns ok to avoid leaking whether an ID exists.
+router.post('/request-password-reset', async (req, res) => {
+  const { role, identifier } = req.body || {};
+  if (!identifier || !role || (role !== 'student' && role !== 'teacher')) {
+    return res.status(400).json({ error: 'role (student|teacher) and identifier required' });
+  }
+
+  const v = String(identifier).trim().toLowerCase();
+  let user = null;
+  let label = '';
+  let link = '';
+  if (role === 'student') {
+    const [rows] = await query(
+      'SELECT id, name, roll_number FROM students WHERE email = ? LIMIT 1',
+      [v]
+    );
+    if (rows.length) {
+      user = rows[0];
+      label = `Roll ${user.roll_number} (${user.name})`;
+      link = '/admin/students';
+    }
+  } else {
+    const [rows] = await query(
+      'SELECT id, name, teacher_id FROM teachers WHERE email = ? LIMIT 1',
+      [v]
+    );
+    if (rows.length) {
+      user = rows[0];
+      label = `${user.teacher_id} (${user.name})`;
+      link = '/admin/teachers';
+    }
+  }
+
+  if (user) {
+    const [admins] = await query('SELECT id FROM admins');
+    for (const a of admins) {
+      await query(
+        `INSERT INTO notifications (recipient_role, recipient_id, title, body, link)
+         VALUES ('admin', ?, ?, ?, ?)`,
+        [
+          a.id,
+          `Password reset requested: ${label}`,
+          `${role === 'student' ? 'Student' : 'Teacher'} ${label} requested a password reset. Open the ${role === 'student' ? 'Students' : 'Teachers'} page and click "Reset password".`,
+          link,
+        ]
+      );
+    }
+  }
+
   res.json({ ok: true });
 });
 

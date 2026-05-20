@@ -16,6 +16,7 @@ import TeacherAssignments from './pages/teacher/TeacherAssignments.jsx'
 import TeacherMarks from './pages/teacher/TeacherMarks.jsx'
 
 import StudentDashboard from './pages/student/StudentDashboard.jsx'
+import StudentProfile from './pages/student/StudentProfile.jsx'
 import StudentAttendance from './pages/student/StudentAttendance.jsx'
 import StudentAssignments from './pages/student/StudentAssignments.jsx'
 import StudentMarks from './pages/student/StudentMarks.jsx'
@@ -24,7 +25,11 @@ function Home() {
   const { user, loading } = useAuth()
   if (loading) return <div className="loading">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
-  if (user.must_change_password) return <Navigate to="/change-password" replace />
+  // Only admin is forced through change-password (highest-privilege role).
+  // Students/teachers get a dismissible reminder on their dashboard instead.
+  if (user.role === 'admin' && user.must_change_password) {
+    return <Navigate to="/change-password" replace />
+  }
   return <Navigate to={`/${user.role}`} replace />
 }
 
@@ -54,6 +59,7 @@ export default function App() {
       <Route path="/teacher/marks"       element={withLayout('teacher', TeacherMarks)} />
 
       <Route path="/student"             element={withLayout('student', StudentDashboard)} />
+      <Route path="/student/profile"     element={withLayout('student', StudentProfile)} />
       <Route path="/student/attendance"  element={withLayout('student', StudentAttendance)} />
       <Route path="/student/assignments" element={withLayout('student', StudentAssignments)} />
       <Route path="/student/marks"       element={withLayout('student', StudentMarks)} />

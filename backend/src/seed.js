@@ -3,55 +3,41 @@ const bcrypt = require('bcryptjs');
 const { query, pool } = require('./config/db');
 
 const SCHOOL_DOMAIN = process.env.SCHOOL_DOMAIN || 'zphsparmalla.in';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 async function seed() {
+  const isProd = process.env.NODE_ENV === 'production';
+  const minLen = isProd ? 8 : 1;
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < minLen) {
+    console.error(`ERROR: ADMIN_PASSWORD env var is required (min ${minLen} chars in ${isProd ? 'production' : 'dev'}).`);
+    console.error('Set it in backend/.env or your environment, then re-run seed.');
+    console.error('Example:  ADMIN_PASSWORD="a-strong-password-here" npm run seed');
+    process.exit(1);
+  }
+
   console.log('Seeding...');
 
-  // Classes
-  for (const [g, s] of [[10, 'A'], [10, 'B'], [9, 'A']]) {
+  // Classes: Nursery (-2), LKG (-1), UKG (0), Class 1..10 (1..10), all section 'A' by default.
+  const defaultGrades = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  for (const g of defaultGrades) {
     await query(
       'INSERT INTO classes (grade, section) VALUES (?, ?) ON CONFLICT (grade, section) DO NOTHING',
-      [g, s]
+      [g, 'A']
     );
   }
-  const [classRows] = await query('SELECT id, grade, section FROM classes');
-  const class10A = classRows.find((c) => c.grade === 10 && c.section === 'A');
-
-  // Admin
-  const adminHash = await bcrypt.hash('admin123', 10);
+  // Admin — must_change_password=true forces a reset on first login,
+  // so even the seeded password is a one-time bootstrap credential.
+  const adminHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   await query(
     `INSERT INTO admins (name, email, password, must_change_password)
-     VALUES (?, ?, ?, FALSE) ON CONFLICT (email) DO NOTHING`,
+     VALUES (?, ?, ?, TRUE) ON CONFLICT (email) DO NOTHING`,
     ['Default Admin', 'admin@' + SCHOOL_DOMAIN, adminHash]
   );
 
-  // Teacher (login: t001 / t001)
-  const tid = 't001';
-  await query(
-    `INSERT INTO teachers (name, teacher_id, email, password, must_change_password, phone, class_id, subject)
-     VALUES (?, ?, ?, ?, FALSE, ?, ?, ?) ON CONFLICT (teacher_id) DO NOTHING`,
-    ['Sita Sharma', tid, `${tid}@${SCHOOL_DOMAIN}`, await bcrypt.hash(tid, 10),
-     '9999000001', class10A?.id || null, 'Math']
-  );
-
-  // Student (login: 101 / 101)
-  const roll = '101';
-  await query(
-    `INSERT INTO students
-       (name, roll_number, email, password, must_change_password, class_id, dob, address, phone,
-        father_name, father_phone, father_email,
-        mother_name, mother_phone, mother_email)
-     VALUES (?, ?, ?, ?, FALSE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (email) DO NOTHING`,
-    ['Aarav Kumar', roll, `${roll}@${SCHOOL_DOMAIN}`, await bcrypt.hash(roll, 10),
-     class10A?.id || null, '2010-05-12', '12 MG Road, Hyderabad', '9999000003',
-     'Ravi Kumar', '9999000002', 'ravi.kumar123@gmail.com',
-     'Sita Kumar', '9999000004', 'sita.kumar456@gmail.com']
-  );
-
   console.log('Seed complete. School domain:', SCHOOL_DOMAIN);
-  console.log('  Admin    : admin@' + SCHOOL_DOMAIN + '  / admin123');
-  console.log('  Teacher  : teacher id "t001"      / t001');
-  console.log('  Student  : roll number "101"      / 101');
+  console.log('  Admin    : admin@' + SCHOOL_DOMAIN);
+  console.log('  Password : (from ADMIN_PASSWORD env var) — must change on first login');
+  console.log('  (Teachers and students are created by the admin from the dashboard.)');
   await pool.end();
   process.exit(0);
 }

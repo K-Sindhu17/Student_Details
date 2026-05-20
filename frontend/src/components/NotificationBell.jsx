@@ -20,6 +20,11 @@ function inferLink(title, role) {
   if (role === 'teacher') {
     if (t.includes('submitted')) return '/teacher/assignments'
   }
+  if (role === 'admin') {
+    if (t.startsWith('password reset requested')) {
+      return t.includes('teacher') ? '/admin/teachers' : '/admin/students'
+    }
+  }
   return null
 }
 
