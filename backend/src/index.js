@@ -35,6 +35,18 @@ app.use((err, req, res, next) => {
       } catch (e) {
         console.error('notifications.link migration failed:', e.message);
       }
+      // Self-heal: older DB snapshots predate the auth feature and are missing
+      // must_change_password on students/teachers. The login route SELECTs it,
+      // so without these the entire login flow 500s. Idempotent — safe to re-run.
+      try {
+        await pool.query(`
+          ALTER TABLE students ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;
+          ALTER TABLE teachers ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;
+          ALTER TABLE admins   ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+        `);
+      } catch (e) {
+        console.error('must_change_password migration failed:', e.message);
+      }
       // Backfill: create teacher notifications for any submitted quiz that doesn't already have one.
       try {
         const r = await pool.query(`

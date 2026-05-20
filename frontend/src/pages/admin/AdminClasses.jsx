@@ -1,10 +1,30 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api'
 
+const GRADE_OPTIONS = [
+  { value: -2, label: 'Nursery' },
+  { value: -1, label: 'LKG' },
+  { value: 0,  label: 'UKG' },
+  { value: 1,  label: 'Class 1' },
+  { value: 2,  label: 'Class 2' },
+  { value: 3,  label: 'Class 3' },
+  { value: 4,  label: 'Class 4' },
+  { value: 5,  label: 'Class 5' },
+  { value: 6,  label: 'Class 6' },
+  { value: 7,  label: 'Class 7' },
+  { value: 8,  label: 'Class 8' },
+  { value: 9,  label: 'Class 9' },
+  { value: 10, label: 'Class 10' },
+]
+
+const labelForGrade = (g) => {
+  const opt = GRADE_OPTIONS.find((o) => o.value === Number(g))
+  return opt ? opt.label : `Grade ${g}`
+}
+
 export default function AdminClasses() {
   const [items, setItems] = useState([])
   const [grade, setGrade] = useState('')
-  const [section, setSection] = useState('')
   const [error, setError] = useState('')
 
   const load = () => api.get('/admin/classes').then(setItems)
@@ -14,8 +34,8 @@ export default function AdminClasses() {
     e.preventDefault()
     setError('')
     try {
-      await api.post('/admin/classes', { grade: Number(grade), section })
-      setGrade(''); setSection('')
+      await api.post('/admin/classes', { grade: Number(grade) })
+      setGrade('')
       load()
     } catch (err) { setError(err.message) }
   }
@@ -33,12 +53,13 @@ export default function AdminClasses() {
         <h3>Add class</h3>
         <form onSubmit={add} className="row" style={{ gap: '1rem' }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Grade</label>
-            <input type="number" required value={grade} onChange={(e) => setGrade(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Section</label>
-            <input required maxLength={1} value={section} onChange={(e) => setSection(e.target.value.toUpperCase())} />
+            <label>Class</label>
+            <select required value={grade} onChange={(e) => setGrade(e.target.value)}>
+              <option value="">— Select —</option>
+              {GRADE_OPTIONS.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
           </div>
           <button>Add</button>
         </form>
@@ -46,11 +67,11 @@ export default function AdminClasses() {
       </div>
       <div className="card">
         <table>
-          <thead><tr><th>ID</th><th>Grade</th><th>Section</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Class</th><th></th></tr></thead>
           <tbody>
             {items.map((c) => (
               <tr key={c.id}>
-                <td>{c.id}</td><td>{c.grade}</td><td>{c.section}</td>
+                <td>{c.id}</td><td>{labelForGrade(c.grade)}</td>
                 <td><button className="danger small" onClick={() => del(c.id)}>Delete</button></td>
               </tr>
             ))}

@@ -8,7 +8,9 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5002',
+        // Local backend (npm run dev in ../backend). Port set by backend/.env.
+        // 5000 occupied by ai-image-gen-backend, 5001 by to-do-backend.
+        target: 'http://localhost:5003',
         changeOrigin: true,
       },
     },

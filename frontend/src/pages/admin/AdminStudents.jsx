@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api'
 
 const empty = {
-  name: '', roll_number: '', class_id: '',
+  name: '', roll_number: '', class: '',
   dob: '', address: '', phone: '',
   father_name: '', father_phone: '', father_email: '',
   mother_name: '', mother_phone: '', mother_email: '',
@@ -10,15 +10,11 @@ const empty = {
 
 export default function AdminStudents() {
   const [items, setItems] = useState([])
-  const [classes, setClasses] = useState([])
   const [form, setForm] = useState(empty)
   const [error, setError] = useState('')
   const [created, setCreated] = useState(null)
 
-  const load = () => Promise.all([
-    api.get('/admin/students'),
-    api.get('/admin/classes'),
-  ]).then(([s, c]) => { setItems(s); setClasses(c) })
+  const load = () => api.get('/admin/students').then(setItems)
 
   useEffect(() => { load() }, [])
 
@@ -26,10 +22,7 @@ export default function AdminStudents() {
     e.preventDefault()
     setError(''); setCreated(null)
     try {
-      const r = await api.post('/admin/students', {
-        ...form,
-        class_id: Number(form.class_id),
-      })
+      const r = await api.post('/admin/students', form)
       setCreated(r)
       setForm(empty)
       load()
@@ -42,6 +35,14 @@ export default function AdminStudents() {
     load()
   }
 
+  const resetPassword = async (id, label) => {
+    if (!confirm(`Reset password for ${label}? They will be required to set a new password on next login.`)) return
+    try {
+      const r = await api.post(`/admin/students/${id}/reset-password`, {})
+      alert(`Password reset.\nDefault password: ${r.default_password}`)
+    } catch (err) { alert(err.message) }
+  }
+
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
   return (
@@ -50,18 +51,16 @@ export default function AdminStudents() {
       <div className="card">
         <h3>Add student</h3>
         <p className="muted" style={{ marginTop: 0 }}>
-          Login email and default password are auto-generated from the roll number.
+          Login email is auto-generated as <code>{`${new Date().getFullYear()}A61st{roll}@…`}</code> (e.g. <code>2026A61st001@…</code>).
+          Default password = roll number. Student must change it on first login.
         </p>
         <form onSubmit={submit}>
           <div className="grid grid-2">
             <div className="field"><label>Name</label><input required value={form.name} onChange={set('name')}/></div>
-            <div className="field"><label>Roll number</label><input required value={form.roll_number} onChange={set('roll_number')}/></div>
+            <div className="field"><label>Roll number</label><input required pattern="\d{1,4}" title="Digits only (e.g. 1, 25, 101)" placeholder="e.g. 1" value={form.roll_number} onChange={set('roll_number')}/></div>
             <div className="field">
               <label>Class</label>
-              <select required value={form.class_id} onChange={set('class_id')}>
-                <option value="">— Select —</option>
-                {classes.map(c => <option key={c.id} value={c.id}>Grade {c.grade} - {c.section}</option>)}
-              </select>
+              <input required placeholder="e.g. 3 or Nursery" value={form.class} onChange={set('class')}/>
             </div>
             <div className="field"><label>DOB</label><input type="date" value={form.dob} onChange={set('dob')}/></div>
             <div className="field"><label>Phone</label><input value={form.phone} onChange={set('phone')}/></div>
@@ -105,7 +104,11 @@ export default function AdminStudents() {
                 <td>{s.father_name || '—'}</td>
                 <td>{s.mother_name || '—'}</td>
                 <td>{s.phone || '—'}</td>
-                <td><button className="danger small" onClick={() => del(s.id)}>Delete</button></td>
+                <td>
+                  <button className="secondary small" onClick={() => resetPassword(s.id, s.name)}>Reset password</button>
+                  {' '}
+                  <button className="danger small" onClick={() => del(s.id)}>Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>

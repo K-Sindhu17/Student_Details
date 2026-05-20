@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { api } from '../../api'
+import Confetti from '../../components/Confetti.jsx'
 
 export default function StudentAssignments() {
   const [items, setItems] = useState([])
@@ -138,6 +139,7 @@ function TakeQuiz({ id, onExit }) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [now, setNow] = useState(Date.now())
+  const [celebrate, setCelebrate] = useState(false)
   const tickRef = useRef()
 
   const fetchQuiz = async () => {
@@ -221,6 +223,7 @@ function TakeQuiz({ id, onExit }) {
       await api.post(`/student/assignments/${id}/submit`, payload)
       // Re-fetch so we get the now-revealed correct answers + per-question results
       await fetchQuiz()
+      setCelebrate(true)
       setSubmitting(false)
     } catch (e) {
       setError(e.message)
@@ -236,6 +239,7 @@ function TakeQuiz({ id, onExit }) {
 
   return (
     <>
+      <Confetti fire={celebrate} onDone={() => setCelebrate(false)} />
       <div className="row">
         <h2 style={{ margin: 0 }}>{data.title}</h2>
         <div className="spacer" />

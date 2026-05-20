@@ -7,8 +7,17 @@ async function request(path, opts = {}) {
     ...opts,
   })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
-  if (!res.ok) throw new Error(data?.error || `Request failed: ${res.status}`)
+  let data = null
+  if (text) {
+    try { data = JSON.parse(text) } catch { data = null }
+  }
+  if (!res.ok) {
+    if (data?.error) throw new Error(data.error)
+    if (res.status === 401) throw new Error('Email or password is incorrect')
+    if (res.status === 403) throw new Error('Not authorized')
+    if (res.status === 404) throw new Error('Not found')
+    throw new Error(`Request failed: ${res.status}`)
+  }
   return data
 }
 

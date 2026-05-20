@@ -10,7 +10,7 @@ router.get('/profile', async (req, res) => {
     `SELECT s.id, s.name, s.email, s.roll_number, s.dob, s.address, s.phone,
             s.father_name, s.father_phone, s.father_email,
             s.mother_name, s.mother_phone, s.mother_email,
-            (c.grade || '-' || c.section) AS class_label
+            (CASE c.grade WHEN -2 THEN 'Nursery' WHEN -1 THEN 'LKG' WHEN 0 THEN 'UKG' ELSE c.grade::text END) AS class_label
      FROM students s
      LEFT JOIN classes c ON c.id = s.class_id
      WHERE s.id = ?`,
